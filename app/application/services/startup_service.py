@@ -81,7 +81,7 @@ def startup_application():
 
     logger.info("STARTUP: global state initialized")
     
-    if False:
+    if AUTO_INGEST_ON_STARTUP:
         logger.info("STARTUP: AUTO_INGEST_ON_STARTUP enabled — running ingestion")
 
         ingestion_service = IngestionService(
