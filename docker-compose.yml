@@ -1,0 +1,58 @@
+services:
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "ps"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  ollama-init:
+    image: ollama/ollama
+    container_name: ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: "ollama pull qwen2.5:7b"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    restart: "no"
+
+  local-rag:
+    build: .
+    container_name: local-rag
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./docs:/app/docs
+      - ./data:/app/data
+      - jina_cache:/root/.cache/huggingface
+    environment:
+      DOCS_FOLDER: /app/docs
+      CHROMA_DIR: /app/data/chroma
+      STATE_FILE: /app/data/ingestion_state.json
+      COLLECTION_NAME: local_docs
+      AUTO_INGEST_ON_STARTUP: "true"
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen2.5:7b
+      EMBED_MODEL: jinaai/jina-embeddings-v4
+      TOP_K: "5"
+      TEXT_CHUNK_SIZE: "1200"
+      TEXT_CHUNK_OVERLAP: "200"
+      IMAGE_DPI_SCALE: "1.5"
+
+volumes:
+  jina_cache:
+  ollama_models:
